@@ -20,6 +20,8 @@ namespace DesktopIniDisabler
         public void refresh()
         {
             this.textBox1.Text = Program.log;
+            this.textBox1.SelectionStart = this.textBox1.Text.Length;
+            this.textBox1.ScrollToCaret();
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)

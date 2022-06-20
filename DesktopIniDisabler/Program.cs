@@ -28,41 +28,86 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 
 namespace DesktopIniDisabler
 {
-    internal static class Program
+    public static class ProcessWatcher
+    {
+        public static void DoWork()
+        {
+            WMI.Win32.ProcessWatcher procWatcher = new WMI.Win32.ProcessWatcher(Program.processes);
+            procWatcher.ProcessCreated += new WMI.Win32.ProcessEventHandler(procWatcher_ProcessCreated);
+            Console.WriteLine("--watcher start");
+            procWatcher.Start();
+            while (true)
+            {
+                procWatcher.WaitForNextEvent();
+                if(Program.context.form.IsHandleCreated )
+                {
+                    Program.context.form.Invoke((MethodInvoker)delegate {
+                        // Running on the UI thread
+                        Program.context.form.refresh();
+                    });
+                }
+
+            }
+            procWatcher.Stop();
+        }
+        static void procWatcher_ProcessCreated(WMI.Win32.Win32_Process process)
+        {
+            //Console.WriteLine("---Created " + process.Name + " " + process.ProcessId + " " + "DateTime:" + DateTime.Now);
+            Program.logger("detected process creation " + process.Name + " " + process.ProcessId);
+            Program.Inject((int)process.ProcessId);
+        }
+    }
+    public static class Program
     {
         public static String log { get; set; }
 
-        [STAThread]
+        public static string[] processes = { "explorer", "GoogleDriveFS" };
+
+        public static MyCustomApplicationContext context;
+
         static void Main(string[] args)
         {
             log = "Start";
-            Inject();
-
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MyCustomApplicationContext());
-
+            context = new MyCustomApplicationContext();
+            Thread thread1 = new Thread(ProcessWatcher.DoWork);
+            thread1.Start();
+            foreach (String process in processes)
+            {
+                var p = Process.GetProcessesByName(process);
+                for (int i = 0; i < p.Length; i++)
+                {
+                    logger("find process " + process + " " + p[i].Id);
+                    Inject(p[i].Id);
+                }
+            }
+            Application.Run(context);
         }
 
-        public static void Inject()
+        public static void Inject(Int32 targetPID)
         {
-            Int32 targetPID = 0;
-            var p = Process.GetProcessesByName("explorer");
-            if (p.Length > 0)
+            if(targetPID == 0)
             {
-                targetPID = p[0].Id;
-                logger("found explorer.exe pid " + targetPID);
+                var p = Process.GetProcessesByName("explorer");
+                if (p.Length > 0)
+                {
+                    targetPID = p[0].Id;
+                    logger("found explorer.exe pid " + targetPID);
+                }
+                else
+                {
+                    logger("explorer.exe not found");
+                }
             }
-            else
-            {
-                logger("explorer.exe not found");
-            }
+  
             // Will contain the name of the IPC server channel
             string channelName = null;
             // Create the IPC server using the DesktopIniDisablerIPC.ServiceInterface class as a singleton
@@ -109,10 +154,11 @@ namespace DesktopIniDisabler
             }
 
         }
-        static void logger(String msg)
+        public static void logger(String msg)
         {
+            Console.WriteLine(msg);
             log += "\r\n" + msg;
-            if( log.Length > 10000 )
+            if ( log.Length > 10000 )
             {
                 log = log.Substring(5000);
             }
@@ -123,8 +169,8 @@ namespace DesktopIniDisabler
     public class MyCustomApplicationContext : ApplicationContext
     {
         private NotifyIcon trayIcon;
+        public Form1 form = new Form1();
 
-        private Form1 form = new Form1();
         public MyCustomApplicationContext()
         {
             // Initialize Tray Icon
@@ -136,24 +182,29 @@ namespace DesktopIniDisabler
                     new MenuItem("Inject", Inject),
                     new MenuItem("Exit", Exit)
                 }),
+                Text = "DesktopIniDisabler",
                 Visible = true
             };
+            trayIcon.Click += Show;
         }
+
         void Inject(object sender, EventArgs e)
         {
-            Program.Inject();
+            Program.Inject(0);
             form.refresh();
         }
         void Show(object sender, EventArgs e)
         {
-           form.Show();
+            form.refresh();
+            form.Show();
+            form.Activate();
         }
         void Exit(object sender, EventArgs e)
         {
             // Hide tray icon, otherwise it will remain shown until user mouses over it
             trayIcon.Visible = false;
-
             Application.Exit();
+            Environment.Exit(Environment.ExitCode);
         }
     }
 }
