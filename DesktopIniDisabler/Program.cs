@@ -68,12 +68,16 @@ namespace DesktopIniDisabler
     {
         public static String log { get; set; }
 
-        public static string[] processes = { "explorer", "GoogleDriveFS" };
+        public static string[] processes = { "explorer", "Dropbox", "GoogleDriveFS" };
 
         public static MyCustomApplicationContext context;
 
         static void Main(string[] args)
         {
+            if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
+            {
+                return;
+            }
             log = "Start";
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
