@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
+using System.Configuration;
 
 namespace DesktopIniDisabler
 {
@@ -68,7 +69,7 @@ namespace DesktopIniDisabler
     {
         public static String log { get; set; }
 
-        public static string[] processes = { "explorer", "Dropbox", "GoogleDriveFS" };
+        public static string[] processes = ConfigurationManager.AppSettings["processes"].Split(',');
 
         public static MyCustomApplicationContext context;
 
