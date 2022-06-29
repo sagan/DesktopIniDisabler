@@ -88,11 +88,16 @@ namespace DesktopIniDisablerHook
                 EasyHook.LocalHook.GetProcAddress("kernel32.dll", "CreateFileW"),
                 new CreateFile_Delegate(CreateFile_Hook),
                 this);
+            var SHGetSetFolderCustomSettingsHook = EasyHook.LocalHook.Create(
+                EasyHook.LocalHook.GetProcAddress("shell32.dll", "SHGetSetFolderCustomSettings"),
+                new SHGetSetFolderCustomSettings_Delegate(SHGetSetFolderCustomSettings_Hook),
+                this);
 
             // Activate hooks on all threads except the current thread
             createFileHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
+            SHGetSetFolderCustomSettingsHook.ThreadACL.SetExclusiveACL(new Int32[] { 0 });
 
-            _server.ReportMessage("CreateFile hooks installed");
+            _server.ReportMessage("hooks installed");
 
             // Wake up the process (required if using RemoteHooking.CreateAndInject)
             EasyHook.RemoteHooking.WakeUpProcess();
@@ -130,22 +135,11 @@ namespace DesktopIniDisablerHook
 
             // Remove hooks
             createFileHook.Dispose();
+            SHGetSetFolderCustomSettingsHook.Dispose();
 
             // Finalise cleanup of hooks
             EasyHook.LocalHook.Release();
         }
-
-        /// <summary>
-        /// P/Invoke to determine the filename from a file handle
-        /// https://msdn.microsoft.com/en-us/library/windows/desktop/aa364962(v=vs.85).aspx
-        /// </summary>
-        /// <param name="hFile"></param>
-        /// <param name="lpszFilePath"></param>
-        /// <param name="cchFilePath"></param>
-        /// <param name="dwFlags"></param>
-        /// <returns></returns>
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        static extern uint GetFinalPathNameByHandle(IntPtr hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, uint cchFilePath, uint dwFlags);
 
         #region CreateFileW Hook
 
@@ -252,5 +246,54 @@ namespace DesktopIniDisablerHook
 
         #endregion
 
+        #region SHGetSetFolderCustomSettings Hook
+        [UnmanagedFunctionPointer(CallingConvention.StdCall,
+                    CharSet = CharSet.Unicode,
+                    SetLastError = false)]
+        delegate UInt32 SHGetSetFolderCustomSettings_Delegate(
+                    IntPtr pfcs,
+                    String folderpath,
+                    UInt32 dwReadWrite);
+
+        [DllImport("shell32.dll",
+            CharSet = CharSet.Unicode,
+            SetLastError = false, CallingConvention = CallingConvention.StdCall)]
+        static extern UInt32 SHGetSetFolderCustomSettings(
+            IntPtr pfcs,
+            String folderpath,
+            UInt32 dwReadWrite);
+
+        // https://docs.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetsetfoldercustomsettings
+        UInt32 SHGetSetFolderCustomSettings_Hook(
+            IntPtr pfcs,
+            String folderpath,
+            UInt32 dwReadWrite)
+        {
+            try
+            {
+                lock (this._messageQueue)
+                {
+                    if (this._messageQueue.Count < 1000)
+                    {
+                        this._messageQueue.Enqueue(string.Format("[{0}:{1}]: Intercept SHGetSetFolderCustomSettings to {2} of type {3}",
+                           EasyHook.RemoteHooking.GetCurrentProcessId(),
+                           EasyHook.RemoteHooking.GetCurrentThreadId(),
+                           folderpath,
+                           dwReadWrite));
+                    }
+                }
+            }
+            catch
+            {
+                // swallow exceptions so that any issues caused by this code do not crash target process
+            }
+            if (dwReadWrite != 0x00000001) // not FCS_READ
+            {
+                return 0x80070005; // E_ACCESSDENIED
+            }
+            return SHGetSetFolderCustomSettings(pfcs, folderpath, dwReadWrite);
+        }
+
+        #endregion
     }
 }
