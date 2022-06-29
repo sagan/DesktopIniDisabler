@@ -85,7 +85,7 @@ namespace DesktopIniDisablerHook
 
             // CreateFile https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx
             var createFileHook = EasyHook.LocalHook.Create(
-                EasyHook.LocalHook.GetProcAddress("kernelBase.dll", "CreateFileW"),
+                EasyHook.LocalHook.GetProcAddress("kernel32.dll", "CreateFileW"),
                 new CreateFile_Delegate(CreateFile_Hook),
                 this);
 
@@ -144,7 +144,7 @@ namespace DesktopIniDisablerHook
         /// <param name="cchFilePath"></param>
         /// <param name="dwFlags"></param>
         /// <returns></returns>
-        [DllImport("kernelBase.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         static extern uint GetFinalPathNameByHandle(IntPtr hFile, [MarshalAs(UnmanagedType.LPTStr)] StringBuilder lpszFilePath, uint cchFilePath, uint dwFlags);
 
         #region CreateFileW Hook
@@ -184,7 +184,7 @@ namespace DesktopIniDisablerHook
         /// <param name="flagsAndAttributes"></param>
         /// <param name="templateFile"></param>
         /// <returns></returns>
-        [DllImport("kernelBase.dll",
+        [DllImport("kernel32.dll",
             CharSet = CharSet.Unicode,
             SetLastError = true, CallingConvention = CallingConvention.StdCall)]
         static extern IntPtr CreateFileW(
