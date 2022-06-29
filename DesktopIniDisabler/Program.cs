@@ -85,6 +85,11 @@ namespace DesktopIniDisabler
             context = new MyCustomApplicationContext();
             Thread thread1 = new Thread(ProcessWatcher.DoWork);
             thread1.Start();
+            InjectAll();
+            Application.Run(context);
+        }
+
+        public static void InjectAll() {
             foreach (String process in processes)
             {
                 var p = Process.GetProcessesByName(process);
@@ -94,7 +99,6 @@ namespace DesktopIniDisabler
                     Inject(p[i].Id);
                 }
             }
-            Application.Run(context);
         }
 
         public static void Inject(Int32 targetPID)
@@ -162,7 +166,7 @@ namespace DesktopIniDisabler
         public static void logger(String msg)
         {
             Console.WriteLine(msg);
-            log += "\r\n" + msg;
+            log += "\r\n" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss ") + msg;
             if ( log.Length > 10000 )
             {
                 log = log.Substring(5000);
@@ -195,7 +199,7 @@ namespace DesktopIniDisabler
 
         void Inject(object sender, EventArgs e)
         {
-            Program.Inject(0);
+            Program.InjectAll();
             form.refresh();
         }
         void Show(object sender, EventArgs e)
