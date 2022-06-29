@@ -8,5 +8,5 @@ I write this app for my personal usage and have only tested it on Windows 11 mac
 
 # How it works
 
-It will find and hook some "explorer.exe", "Dropbox.exe", "GoogleDriveFS.exe" processes to intercept the
-CreateFileW win32 API to prevent these processes from creating the desktop.ini files.
+It will find and inject some "explorer.exe", "Dropbox.exe", "GoogleDriveFS.exe" processes to hook some
+"CreateFileW", "SHGetSetFolderCustomSettings" win32 APIs to prevent these processes from creating the desktop.ini files.
