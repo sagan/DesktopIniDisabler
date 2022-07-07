@@ -46,15 +46,17 @@ namespace DesktopIniDisabler
             procWatcher.Start();
             while (true)
             {
-                procWatcher.WaitForNextEvent();
-                if(Program.context.form.IsHandleCreated )
+                try
                 {
-                    Program.context.form.Invoke((MethodInvoker)delegate {
-                        // Running on the UI thread
-                        Program.context.form.refresh();
-                    });
-                }
-
+                    procWatcher.WaitForNextEvent();
+                    if (Program.context.form.IsHandleCreated)
+                    {
+                        Program.context.form.Invoke((MethodInvoker)delegate {
+                            // Running on the UI thread
+                            Program.context.form.refresh();
+                        });
+                    }
+                } catch(Exception e) { }
             }
             procWatcher.Stop();
         }
